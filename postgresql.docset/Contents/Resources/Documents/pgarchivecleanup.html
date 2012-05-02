@@ -1,0 +1,479 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<HTML
+><HEAD
+><TITLE
+>pg_archivecleanup</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.79"><LINK
+REV="MADE"
+HREF="mailto:pgsql-docs@postgresql.org"><LINK
+REL="HOME"
+TITLE="PostgreSQL 9.1.1 Documentation"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Additional Supplied Modules"
+HREF="contrib.html"><LINK
+REL="PREVIOUS"
+TITLE="passwordcheck"
+HREF="passwordcheck.html"><LINK
+REL="NEXT"
+TITLE="pgbench"
+HREF="pgbench.html"><LINK
+REL="STYLESHEET"
+TYPE="text/css"
+HREF="stylesheet.css"><META
+HTTP-EQUIV="Content-Type"
+CONTENT="text/html; charset=ISO-8859-1"><META
+NAME="creation"
+CONTENT="2011-09-22T22:13:27"></HEAD
+><BODY
+CLASS="SECT1"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="5"
+ALIGN="center"
+VALIGN="bottom"
+><A
+HREF="index.html"
+>PostgreSQL 9.1.1 Documentation</A
+></TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="top"
+><A
+TITLE="passwordcheck"
+HREF="passwordcheck.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="top"
+><A
+TITLE="Additional Supplied Modules"
+HREF="contrib.html"
+>Fast Backward</A
+></TD
+><TD
+WIDTH="60%"
+ALIGN="center"
+VALIGN="bottom"
+>Appendix F. Additional Supplied Modules</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="top"
+><A
+TITLE="Additional Supplied Modules"
+HREF="contrib.html"
+>Fast Forward</A
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="top"
+><A
+TITLE="pgbench"
+HREF="pgbench.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="PGARCHIVECLEANUP"
+>F.25. pg_archivecleanup</A
+></H1
+><P
+>  <SPAN
+CLASS="APPLICATION"
+>pg_archivecleanup</SPAN
+> is designed to be used as an
+  <TT
+CLASS="LITERAL"
+>archive_cleanup_command</TT
+> to clean up WAL file archives when
+  running as a standby server (see <A
+HREF="warm-standby.html"
+>Section 25.2</A
+>).
+  <SPAN
+CLASS="APPLICATION"
+>pg_archivecleanup</SPAN
+> can also be used as a standalone program to
+  clean WAL file archives.
+ </P
+><P
+>  <SPAN
+CLASS="APPLICATION"
+>pg_archivecleanup</SPAN
+> features include:
+ </P
+><P
+></P
+><UL
+><LI
+><P
+>    Written in C, so very portable and easy to install
+   </P
+></LI
+><LI
+><P
+>    Easy-to-modify source code, with specifically designated
+    sections to modify for your own needs
+   </P
+></LI
+></UL
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN133093"
+>F.25.1. Usage</A
+></H2
+><P
+>   To configure a standby
+   server to use <SPAN
+CLASS="APPLICATION"
+>pg_archivecleanup</SPAN
+>, put this into its
+   <TT
+CLASS="FILENAME"
+>recovery.conf</TT
+> configuration file:
+</P><PRE
+CLASS="PROGRAMLISTING"
+>archive_cleanup_command = 'pg_archivecleanup <TT
+CLASS="REPLACEABLE"
+><I
+>archivelocation</I
+></TT
+> %r'</PRE
+><P>
+   where <TT
+CLASS="REPLACEABLE"
+><I
+>archivelocation</I
+></TT
+> is the directory from which WAL segment
+   files should be removed.
+  </P
+><P
+>   When used within <A
+HREF="archive-recovery-settings.html#ARCHIVE-CLEANUP-COMMAND"
+>archive_cleanup_command</A
+>, all WAL files
+   logically preceding the value of the <TT
+CLASS="LITERAL"
+>%r</TT
+> argument will be removed
+   from <TT
+CLASS="REPLACEABLE"
+><I
+>archivelocation</I
+></TT
+>. This minimizes the number of files
+   that need to be retained, while preserving crash-restart capability.  Use of
+   this parameter is appropriate if the <TT
+CLASS="REPLACEABLE"
+><I
+>archivelocation</I
+></TT
+> is a
+   transient staging area for this particular standby server, but
+   <SPAN
+CLASS="emphasis"
+><I
+CLASS="EMPHASIS"
+>not</I
+></SPAN
+> when the <TT
+CLASS="REPLACEABLE"
+><I
+>archivelocation</I
+></TT
+> is intended as a
+   long-term WAL archive area, or when multiple standby servers are recovering
+   from the same archive location.
+  </P
+><P
+>   The full syntax of <SPAN
+CLASS="APPLICATION"
+>pg_archivecleanup</SPAN
+>'s command line is
+</P><PRE
+CLASS="SYNOPSIS"
+>pg_archivecleanup [<SPAN
+CLASS="OPTIONAL"
+> <TT
+CLASS="REPLACEABLE"
+><I
+>option</I
+></TT
+> ... </SPAN
+>] <TT
+CLASS="REPLACEABLE"
+><I
+>archivelocation</I
+></TT
+> <TT
+CLASS="REPLACEABLE"
+><I
+>restartwalfile</I
+></TT
+></PRE
+><P>
+   When used as a standalone program all WAL files logically preceding the
+   <TT
+CLASS="LITERAL"
+>restartwalfile</TT
+> will be removed <TT
+CLASS="REPLACEABLE"
+><I
+>archivelocation</I
+></TT
+>.
+   In this mode, if you specify a <TT
+CLASS="FILENAME"
+>.backup</TT
+> file name, then only the file prefix
+   will be used as the <TT
+CLASS="LITERAL"
+>restartwalfile</TT
+>. This allows you to remove
+   all WAL files archived prior to a specific base backup without error.
+   For example, the following example will remove all files older than
+   WAL file name <TT
+CLASS="FILENAME"
+>000000010000003700000010</TT
+>:
+</P><PRE
+CLASS="PROGRAMLISTING"
+>pg_archivecleanup -d archive 000000010000003700000010.00000020.backup
+
+pg_archivecleanup:  keep WAL file "archive/000000010000003700000010" and later
+pg_archivecleanup:  removing file "archive/00000001000000370000000F"
+pg_archivecleanup:  removing file "archive/00000001000000370000000E"</PRE
+><P>
+   <SPAN
+CLASS="APPLICATION"
+>pg_archivecleanup</SPAN
+> assumes that
+   <TT
+CLASS="REPLACEABLE"
+><I
+>archivelocation</I
+></TT
+> is a directory readable and writable by the
+   server-owning user.
+  </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN133123"
+>F.25.2. <SPAN
+CLASS="APPLICATION"
+>pg_archivecleanup</SPAN
+> Options</A
+></H2
+><P
+>    <SPAN
+CLASS="APPLICATION"
+>pg_archivecleanup</SPAN
+> accepts the following command-line arguments:
+
+    <P
+></P
+></P><DIV
+CLASS="VARIABLELIST"
+><DL
+><DT
+><TT
+CLASS="OPTION"
+>-d</TT
+></DT
+><DD
+><P
+>        Print lots of debug logging output on <TT
+CLASS="FILENAME"
+>stderr</TT
+>.
+       </P
+></DD
+></DL
+></DIV
+><P>
+   </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN133135"
+>F.25.3. Examples</A
+></H2
+><P
+>On Linux or Unix systems, you might use:
+</P><PRE
+CLASS="PROGRAMLISTING"
+>archive_cleanup_command = 'pg_archivecleanup -d /mnt/standby/archive %r 2&#62;&#62;cleanup.log'</PRE
+><P>
+   where the archive directory is physically located on the standby server,
+   so that the <TT
+CLASS="VARNAME"
+>archive_command</TT
+> is accessing it across NFS,
+   but the files are local to the standby.
+   This will:
+  </P
+><P
+></P
+><UL
+><LI
+><P
+>     produce debugging output in <TT
+CLASS="FILENAME"
+>cleanup.log</TT
+>
+    </P
+></LI
+><LI
+><P
+>     remove no-longer-needed files from the archive directory
+    </P
+></LI
+></UL
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN133146"
+>F.25.4. Supported Server Versions</A
+></H2
+><P
+>   <SPAN
+CLASS="APPLICATION"
+>pg_archivecleanup</SPAN
+> is designed to work with
+   <SPAN
+CLASS="PRODUCTNAME"
+>PostgreSQL</SPAN
+> 8.0 and later when used as a standalone utility,
+   or with <SPAN
+CLASS="PRODUCTNAME"
+>PostgreSQL</SPAN
+> 9.0 and later when used as an
+   archive cleanup command.
+  </P
+></DIV
+><DIV
+CLASS="SECT2"
+><H2
+CLASS="SECT2"
+><A
+NAME="AEN133152"
+>F.25.5. Author</A
+></H2
+><P
+>   Simon Riggs <CODE
+CLASS="EMAIL"
+>&#60;<A
+HREF="mailto:simon@2ndquadrant.com"
+>simon@2ndquadrant.com</A
+>&#62;</CODE
+>
+  </P
+></DIV
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="passwordcheck.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="pgbench.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>passwordcheck</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="contrib.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>pgbench</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

@@ -1,0 +1,883 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<HTML
+><HEAD
+><TITLE
+>Using EXPLAIN</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.79"><LINK
+REV="MADE"
+HREF="mailto:pgsql-docs@postgresql.org"><LINK
+REL="HOME"
+TITLE="PostgreSQL 9.1.1 Documentation"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Performance Tips"
+HREF="performance-tips.html"><LINK
+REL="PREVIOUS"
+TITLE="Performance Tips"
+HREF="performance-tips.html"><LINK
+REL="NEXT"
+TITLE="Statistics Used by the Planner"
+HREF="planner-stats.html"><LINK
+REL="STYLESHEET"
+TYPE="text/css"
+HREF="stylesheet.css"><META
+HTTP-EQUIV="Content-Type"
+CONTENT="text/html; charset=ISO-8859-1"><META
+NAME="creation"
+CONTENT="2011-09-22T22:13:27"></HEAD
+><BODY
+CLASS="SECT1"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="5"
+ALIGN="center"
+VALIGN="bottom"
+><A
+HREF="index.html"
+>PostgreSQL 9.1.1 Documentation</A
+></TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="top"
+><A
+TITLE="Performance Tips"
+HREF="performance-tips.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="top"
+><A
+TITLE="Performance Tips"
+HREF="performance-tips.html"
+>Fast Backward</A
+></TD
+><TD
+WIDTH="60%"
+ALIGN="center"
+VALIGN="bottom"
+>Chapter 14. Performance Tips</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="top"
+><A
+TITLE="Performance Tips"
+HREF="performance-tips.html"
+>Fast Forward</A
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="top"
+><A
+TITLE="Statistics Used by the Planner"
+HREF="planner-stats.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="USING-EXPLAIN"
+>14.1. Using <TT
+CLASS="COMMAND"
+>EXPLAIN</TT
+></A
+></H1
+><P
+>    <SPAN
+CLASS="PRODUCTNAME"
+>PostgreSQL</SPAN
+> devises a <I
+CLASS="FIRSTTERM"
+>query
+    plan</I
+> for each query it receives.  Choosing the right
+    plan to match the query structure and the properties of the data
+    is absolutely critical for good performance, so the system includes
+    a complex <I
+CLASS="FIRSTTERM"
+>planner</I
+> that tries to choose good plans.
+    You can use the
+    <A
+HREF="sql-explain.html"
+>EXPLAIN</A
+> command
+    to see what query plan the planner creates for any query.
+    Plan-reading is an art that deserves an extensive tutorial, which
+    this is not; but here is some basic information.
+   </P
+><P
+>    The structure of a query plan is a tree of <I
+CLASS="FIRSTTERM"
+>plan nodes</I
+>.
+    Nodes at the bottom level of the tree are table scan nodes: they return raw rows
+    from a table.  There are different types of scan nodes for different
+    table access methods: sequential scans, index scans, and bitmap index
+    scans.  If the query requires joining, aggregation, sorting, or other
+    operations on the raw rows, then there will be additional nodes
+    above the scan nodes to perform these operations.  Again,
+    there is usually more than one possible way to do these operations,
+    so different node types can appear here too.  The output
+    of <TT
+CLASS="COMMAND"
+>EXPLAIN</TT
+> has one line for each node in the plan
+    tree, showing the basic node type plus the cost estimates that the planner
+    made for the execution of that plan node.  The first line (topmost node)
+    has the estimated total execution cost for the plan; it is this number
+    that the planner seeks to minimize.
+   </P
+><P
+>    Here is a trivial example, just to show what the output looks like:
+    <A
+NAME="AEN22844"
+HREF="#FTN.AEN22844"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+>
+
+</P><PRE
+CLASS="PROGRAMLISTING"
+>EXPLAIN SELECT * FROM tenk1;
+
+                         QUERY PLAN
+-------------------------------------------------------------
+ Seq Scan on tenk1  (cost=0.00..458.00 rows=10000 width=244)</PRE
+><P>
+   </P
+><P
+>    The numbers that are quoted by <TT
+CLASS="COMMAND"
+>EXPLAIN</TT
+> are (left
+    to right):
+
+    <P
+></P
+></P><UL
+><LI
+><P
+>       Estimated start-up cost (time expended before the output scan can start,
+       e.g., time to do the sorting in a sort node)
+      </P
+></LI
+><LI
+><P
+>       Estimated total cost (if all rows are retrieved, though they might
+       not be; e.g., a query with a <TT
+CLASS="LITERAL"
+>LIMIT</TT
+> clause will stop
+       short of paying the total cost of the <TT
+CLASS="LITERAL"
+>Limit</TT
+> plan node's
+       input node)
+      </P
+></LI
+><LI
+><P
+>       Estimated number of rows output by this plan node (again, only if
+       executed to completion)
+      </P
+></LI
+><LI
+><P
+>       Estimated average width (in bytes) of rows output by this plan
+       node
+      </P
+></LI
+></UL
+><P>
+   </P
+><P
+>    The costs are measured in arbitrary units determined by the planner's
+    cost parameters (see <A
+HREF="runtime-config-query.html#RUNTIME-CONFIG-QUERY-CONSTANTS"
+>Section 18.7.2</A
+>).
+    Traditional practice is to measure the costs in units of disk page
+    fetches; that is, <A
+HREF="runtime-config-query.html#GUC-SEQ-PAGE-COST"
+>seq_page_cost</A
+> is conventionally
+    set to <TT
+CLASS="LITERAL"
+>1.0</TT
+> and the other cost parameters are set relative
+    to that.  (The examples in this section are run with the default cost
+    parameters.)
+   </P
+><P
+>    It's important to note that the cost of an upper-level node includes
+    the cost of all its child nodes.  It's also important to realize that
+    the cost only reflects things that the planner cares about.
+    In particular, the cost does not consider the time spent transmitting
+    result rows to the client, which could be an important
+    factor in the real elapsed time; but the planner ignores it because
+    it cannot change it by altering the plan.  (Every correct plan will
+    output the same row set, we trust.)
+   </P
+><P
+>    The <TT
+CLASS="LITERAL"
+>rows</TT
+> value is a little tricky
+    because it is <SPAN
+CLASS="emphasis"
+><I
+CLASS="EMPHASIS"
+>not</I
+></SPAN
+> the
+    number of rows processed or scanned by the plan node.  It is usually less,
+    reflecting the estimated selectivity of any <TT
+CLASS="LITERAL"
+>WHERE</TT
+>-clause
+    conditions that are being
+    applied at the node.  Ideally the top-level rows estimate will
+    approximate the number of rows actually returned, updated, or deleted
+    by the query.
+   </P
+><P
+>    Returning to our example:
+
+</P><PRE
+CLASS="PROGRAMLISTING"
+>EXPLAIN SELECT * FROM tenk1;
+
+                         QUERY PLAN
+-------------------------------------------------------------
+ Seq Scan on tenk1  (cost=0.00..458.00 rows=10000 width=244)</PRE
+><P>
+   </P
+><P
+>    This is about as straightforward as it gets.  If you do:
+
+</P><PRE
+CLASS="PROGRAMLISTING"
+>SELECT relpages, reltuples FROM pg_class WHERE relname = 'tenk1';</PRE
+><P>
+
+    you will find that <CODE
+CLASS="CLASSNAME"
+>tenk1</CODE
+> has 358 disk
+    pages and 10000 rows.  The estimated cost is computed as (disk pages read *
+    <A
+HREF="runtime-config-query.html#GUC-SEQ-PAGE-COST"
+>seq_page_cost</A
+>) + (rows scanned *
+    <A
+HREF="runtime-config-query.html#GUC-CPU-TUPLE-COST"
+>cpu_tuple_cost</A
+>).  By default,
+    <TT
+CLASS="VARNAME"
+>seq_page_cost</TT
+> is 1.0 and <TT
+CLASS="VARNAME"
+>cpu_tuple_cost</TT
+> is 0.01,
+    so the estimated cost is (358 * 1.0) + (10000 * 0.01) = 458.
+   </P
+><P
+>    Now let's modify the original query to add a <TT
+CLASS="LITERAL"
+>WHERE</TT
+> condition:
+
+</P><PRE
+CLASS="PROGRAMLISTING"
+>EXPLAIN SELECT * FROM tenk1 WHERE unique1 &lt; 7000;
+
+                         QUERY PLAN
+------------------------------------------------------------
+ Seq Scan on tenk1  (cost=0.00..483.00 rows=7033 width=244)
+   Filter: (unique1 &lt; 7000)</PRE
+><P>
+
+    Notice that the <TT
+CLASS="COMMAND"
+>EXPLAIN</TT
+> output shows the <TT
+CLASS="LITERAL"
+>WHERE</TT
+>
+    clause being applied as a <SPAN
+CLASS="QUOTE"
+>"filter"</SPAN
+> condition; this means that
+    the plan node checks the condition for each row it scans, and outputs
+    only the ones that pass the condition.
+    The estimate of output rows has been reduced because of the <TT
+CLASS="LITERAL"
+>WHERE</TT
+>
+    clause.
+    However, the scan will still have to visit all 10000 rows, so the cost
+    hasn't decreased; in fact it has gone up a bit (by 10000 * <A
+HREF="runtime-config-query.html#GUC-CPU-OPERATOR-COST"
+>cpu_operator_cost</A
+>, to be exact) to reflect the extra CPU
+    time spent checking the <TT
+CLASS="LITERAL"
+>WHERE</TT
+> condition.
+   </P
+><P
+>    The actual number of rows this query would select is 7000, but the <TT
+CLASS="LITERAL"
+>rows</TT
+>
+    estimate is only approximate.  If you try to duplicate this experiment,
+    you will probably get a slightly different estimate; moreover, it will
+    change after each <TT
+CLASS="COMMAND"
+>ANALYZE</TT
+> command, because the
+    statistics produced by <TT
+CLASS="COMMAND"
+>ANALYZE</TT
+> are taken from a
+    randomized sample of the table.
+   </P
+><P
+>    Now, let's make the condition more restrictive:
+
+</P><PRE
+CLASS="PROGRAMLISTING"
+>EXPLAIN SELECT * FROM tenk1 WHERE unique1 &lt; 100;
+
+                                  QUERY PLAN
+------------------------------------------------------------------------------
+ Bitmap Heap Scan on tenk1  (cost=2.37..232.35 rows=106 width=244)
+   Recheck Cond: (unique1 &lt; 100)
+   -&#62;  Bitmap Index Scan on tenk1_unique1  (cost=0.00..2.37 rows=106 width=0)
+         Index Cond: (unique1 &lt; 100)</PRE
+><P>
+
+    Here the planner has decided to use a two-step plan: the bottom plan
+    node visits an index to find the locations of rows matching the index
+    condition, and then the upper plan node actually fetches those rows
+    from the table itself.  Fetching the rows separately is much more
+    expensive than sequentially reading them, but because not all the pages
+    of the table have to be visited, this is still cheaper than a sequential
+    scan.  (The reason for using two plan levels is that the upper plan
+    node sorts the row locations identified by the index into physical order
+    before reading them, to minimize the cost of separate fetches.
+    The <SPAN
+CLASS="QUOTE"
+>"bitmap"</SPAN
+> mentioned in the node names is the mechanism that
+    does the sorting.)
+   </P
+><P
+>    If the <TT
+CLASS="LITERAL"
+>WHERE</TT
+> condition is selective enough, the planner might
+    switch to a <SPAN
+CLASS="QUOTE"
+>"simple"</SPAN
+> index scan plan:
+
+</P><PRE
+CLASS="PROGRAMLISTING"
+>EXPLAIN SELECT * FROM tenk1 WHERE unique1 &lt; 3;
+
+                                  QUERY PLAN
+------------------------------------------------------------------------------
+ Index Scan using tenk1_unique1 on tenk1  (cost=0.00..10.00 rows=2 width=244)
+   Index Cond: (unique1 &lt; 3)</PRE
+><P>
+
+    In this case the table rows are fetched in index order, which makes them
+    even more expensive to read, but there are so few that the extra cost
+    of sorting the row locations is not worth it.  You'll most often see
+    this plan type for queries that fetch just a single row, and for queries
+    that have an <TT
+CLASS="LITERAL"
+>ORDER BY</TT
+> condition that matches the index
+    order.
+   </P
+><P
+>    Add another condition to the <TT
+CLASS="LITERAL"
+>WHERE</TT
+> clause:
+
+</P><PRE
+CLASS="PROGRAMLISTING"
+>EXPLAIN SELECT * FROM tenk1 WHERE unique1 &lt; 3 AND stringu1 = 'xxx';
+
+                                  QUERY PLAN
+------------------------------------------------------------------------------
+ Index Scan using tenk1_unique1 on tenk1  (cost=0.00..10.01 rows=1 width=244)
+   Index Cond: (unique1 &lt; 3)
+   Filter: (stringu1 = 'xxx'::name)</PRE
+><P>
+
+    The added condition <TT
+CLASS="LITERAL"
+>stringu1 = 'xxx'</TT
+> reduces the
+    output-rows estimate, but not the cost because we still have to visit the
+    same set of rows.  Notice that the <TT
+CLASS="LITERAL"
+>stringu1</TT
+> clause
+    cannot be applied as an index condition (since this index is only on
+    the <TT
+CLASS="LITERAL"
+>unique1</TT
+> column).  Instead it is applied as a filter on
+    the rows retrieved by the index.  Thus the cost has actually gone up
+    slightly to reflect this extra checking.
+   </P
+><P
+>    If there are indexes on several columns referenced in <TT
+CLASS="LITERAL"
+>WHERE</TT
+>, the
+    planner might choose to use an AND or OR combination of the indexes:
+
+</P><PRE
+CLASS="PROGRAMLISTING"
+>EXPLAIN SELECT * FROM tenk1 WHERE unique1 &lt; 100 AND unique2 &gt; 9000;
+
+                                     QUERY PLAN
+-------------------------------------------------------------------------------------
+ Bitmap Heap Scan on tenk1  (cost=11.27..49.11 rows=11 width=244)
+   Recheck Cond: ((unique1 &lt; 100) AND (unique2 &gt; 9000))
+   -&gt;  BitmapAnd  (cost=11.27..11.27 rows=11 width=0)
+         -&gt;  Bitmap Index Scan on tenk1_unique1  (cost=0.00..2.37 rows=106 width=0)
+               Index Cond: (unique1 &lt; 100)
+         -&gt;  Bitmap Index Scan on tenk1_unique2  (cost=0.00..8.65 rows=1042 width=0)
+               Index Cond: (unique2 &gt; 9000)</PRE
+><P>
+
+    But this requires visiting both indexes, so it's not necessarily a win
+    compared to using just one index and treating the other condition as
+    a filter.  If you vary the ranges involved you'll see the plan change
+    accordingly.
+   </P
+><P
+>    Let's try joining two tables, using the columns we have been discussing:
+
+</P><PRE
+CLASS="PROGRAMLISTING"
+>EXPLAIN SELECT *
+FROM tenk1 t1, tenk2 t2
+WHERE t1.unique1 &lt; 100 AND t1.unique2 = t2.unique2;
+
+                                      QUERY PLAN
+--------------------------------------------------------------------------------------
+ Nested Loop  (cost=2.37..553.11 rows=106 width=488)
+   -&gt;  Bitmap Heap Scan on tenk1 t1  (cost=2.37..232.35 rows=106 width=244)
+         Recheck Cond: (unique1 &lt; 100)
+         -&gt;  Bitmap Index Scan on tenk1_unique1  (cost=0.00..2.37 rows=106 width=0)
+               Index Cond: (unique1 &lt; 100)
+   -&gt;  Index Scan using tenk2_unique2 on tenk2 t2  (cost=0.00..3.01 rows=1 width=244)
+         Index Cond: (unique2 = t1.unique2)</PRE
+><P>
+   </P
+><P
+>    In this nested-loop join, the outer (upper) scan is the same bitmap index scan we
+    saw earlier, and so its cost and row count are the same because we are
+    applying the <TT
+CLASS="LITERAL"
+>WHERE</TT
+> clause <TT
+CLASS="LITERAL"
+>unique1 &lt; 100</TT
+>
+    at that node.
+    The <TT
+CLASS="LITERAL"
+>t1.unique2 = t2.unique2</TT
+> clause is not relevant yet,
+    so it doesn't affect the row count of the outer scan.  For the inner (lower) scan, the
+    <TT
+CLASS="LITERAL"
+>unique2</TT
+> value of the current outer-scan row is plugged into
+    the inner index scan to produce an index condition like
+    <TT
+CLASS="LITERAL"
+>unique2 = <TT
+CLASS="REPLACEABLE"
+><I
+>constant</I
+></TT
+></TT
+>.
+    So we get the same inner-scan plan and costs that we'd get from, say,
+    <TT
+CLASS="LITERAL"
+>EXPLAIN SELECT * FROM tenk2 WHERE unique2 = 42</TT
+>.  The
+    costs of the loop node are then set on the basis of the cost of the outer
+    scan, plus one repetition of the inner scan for each outer row (106 * 3.01,
+    here), plus a little CPU time for join processing.
+   </P
+><P
+>    In this example the join's output row count is the same as the product
+    of the two scans' row counts, but that's not true in all cases because
+    you can have <TT
+CLASS="LITERAL"
+>WHERE</TT
+> clauses that mention both tables
+    and so can only be applied at the join point, not to either input scan.
+    For example, if we added
+    <TT
+CLASS="LITERAL"
+>WHERE ... AND t1.hundred &lt; t2.hundred</TT
+>,
+    that would decrease the output row count of the join node, but not change
+    either input scan.
+   </P
+><P
+>    One way to look at variant plans is to force the planner to disregard
+    whatever strategy it thought was the cheapest, using the enable/disable
+    flags described in <A
+HREF="runtime-config-query.html#RUNTIME-CONFIG-QUERY-ENABLE"
+>Section 18.7.1</A
+>.
+    (This is a crude tool, but useful.  See
+    also <A
+HREF="explicit-joins.html"
+>Section 14.3</A
+>.)
+
+</P><PRE
+CLASS="PROGRAMLISTING"
+>SET enable_nestloop = off;
+EXPLAIN SELECT *
+FROM tenk1 t1, tenk2 t2
+WHERE t1.unique1 &lt; 100 AND t1.unique2 = t2.unique2;
+
+                                        QUERY PLAN
+------------------------------------------------------------------------------------------
+ Hash Join  (cost=232.61..741.67 rows=106 width=488)
+   Hash Cond: (t2.unique2 = t1.unique2)
+   -&gt;  Seq Scan on tenk2 t2  (cost=0.00..458.00 rows=10000 width=244)
+   -&gt;  Hash  (cost=232.35..232.35 rows=106 width=244)
+         -&gt;  Bitmap Heap Scan on tenk1 t1  (cost=2.37..232.35 rows=106 width=244)
+               Recheck Cond: (unique1 &lt; 100)
+               -&gt;  Bitmap Index Scan on tenk1_unique1  (cost=0.00..2.37 rows=106 width=0)
+                     Index Cond: (unique1 &lt; 100)</PRE
+><P>
+
+    This plan proposes to extract the 100 interesting rows of <CODE
+CLASS="CLASSNAME"
+>tenk1</CODE
+>
+    using that same old index scan, stash them into an in-memory hash table,
+    and then do a sequential scan of <CODE
+CLASS="CLASSNAME"
+>tenk2</CODE
+>, probing into the hash table
+    for possible matches of <TT
+CLASS="LITERAL"
+>t1.unique2 = t2.unique2</TT
+> for each <CODE
+CLASS="CLASSNAME"
+>tenk2</CODE
+> row.
+    The cost to read <CODE
+CLASS="CLASSNAME"
+>tenk1</CODE
+> and set up the hash table is a start-up
+    cost for the hash join, since there will be no output until we can
+    start reading <CODE
+CLASS="CLASSNAME"
+>tenk2</CODE
+>.  The total time estimate for the join also
+    includes a hefty charge for the CPU time to probe the hash table
+    10000 times.  Note, however, that we are <SPAN
+CLASS="emphasis"
+><I
+CLASS="EMPHASIS"
+>not</I
+></SPAN
+> charging 10000 times 232.35;
+    the hash table setup is only done once in this plan type.
+   </P
+><P
+>    It is possible to check the accuracy of the planner's estimated costs
+    by using <TT
+CLASS="COMMAND"
+>EXPLAIN ANALYZE</TT
+>.  This command actually executes the query,
+    and then displays the true run time accumulated within each plan node
+    along with the same estimated costs that a plain <TT
+CLASS="COMMAND"
+>EXPLAIN</TT
+> shows.
+    For example, we might get a result like this:
+
+</P><PRE
+CLASS="SCREEN"
+>EXPLAIN ANALYZE SELECT *
+FROM tenk1 t1, tenk2 t2
+WHERE t1.unique1 &lt; 100 AND t1.unique2 = t2.unique2;
+
+                                                            QUERY PLAN
+----------------------------------------------------------------------------------------------------------------------------------
+ Nested Loop  (cost=2.37..553.11 rows=106 width=488) (actual time=1.392..12.700 rows=100 loops=1)
+   -&gt;  Bitmap Heap Scan on tenk1 t1  (cost=2.37..232.35 rows=106 width=244) (actual time=0.878..2.367 rows=100 loops=1)
+         Recheck Cond: (unique1 &lt; 100)
+         -&gt;  Bitmap Index Scan on tenk1_unique1  (cost=0.00..2.37 rows=106 width=0) (actual time=0.546..0.546 rows=100 loops=1)
+               Index Cond: (unique1 &lt; 100)
+   -&gt;  Index Scan using tenk2_unique2 on tenk2 t2  (cost=0.00..3.01 rows=1 width=244) (actual time=0.067..0.078 rows=1 loops=100)
+         Index Cond: (unique2 = t1.unique2)
+ Total runtime: 14.452 ms</PRE
+><P>
+
+    Note that the <SPAN
+CLASS="QUOTE"
+>"actual time"</SPAN
+> values are in milliseconds of
+    real time, whereas the <TT
+CLASS="LITERAL"
+>cost</TT
+> estimates are expressed in
+    arbitrary units; so they are unlikely to match up.
+    The thing to pay attention to is whether the ratios of actual time and
+    estimated costs are consistent.
+   </P
+><P
+>    In some query plans, it is possible for a subplan node to be executed more
+    than once.  For example, the inner index scan is executed once per outer
+    row in the above nested-loop plan.  In such cases, the
+    <TT
+CLASS="LITERAL"
+>loops</TT
+> value reports the
+    total number of executions of the node, and the actual time and rows
+    values shown are averages per-execution.  This is done to make the numbers
+    comparable with the way that the cost estimates are shown.  Multiply by
+    the <TT
+CLASS="LITERAL"
+>loops</TT
+> value to get the total time actually spent in
+    the node.
+   </P
+><P
+>    The <TT
+CLASS="LITERAL"
+>Total runtime</TT
+> shown by <TT
+CLASS="COMMAND"
+>EXPLAIN
+    ANALYZE</TT
+> includes executor start-up and shut-down time, but not
+    parsing, rewriting, or planning time.  For <TT
+CLASS="COMMAND"
+>INSERT</TT
+>,
+    <TT
+CLASS="COMMAND"
+>UPDATE</TT
+>, and <TT
+CLASS="COMMAND"
+>DELETE</TT
+> commands, the time spent
+    applying the table changes is charged to a top-level Insert, Update,
+    or Delete plan node.  (The plan nodes underneath this node represent
+    the work of locating the old rows and/or computing the new ones.)
+    Time spent executing <TT
+CLASS="LITERAL"
+>BEFORE</TT
+> triggers, if any, is charged to
+    the related Insert, Update, or Delete node, although time spent executing
+    <TT
+CLASS="LITERAL"
+>AFTER</TT
+> triggers is not.  The time spent in each trigger
+    (either <TT
+CLASS="LITERAL"
+>BEFORE</TT
+> or <TT
+CLASS="LITERAL"
+>AFTER</TT
+>) is also shown separately
+    and is included in total run time.
+    Note, however, that deferred constraint triggers will not be executed
+    until end of transaction and are thus not shown by
+    <TT
+CLASS="COMMAND"
+>EXPLAIN ANALYZE</TT
+>.
+   </P
+><P
+>    There are two significant ways in which run times measured by
+    <TT
+CLASS="COMMAND"
+>EXPLAIN ANALYZE</TT
+> can deviate from normal execution of
+    the same query.  First, since no output rows are delivered to the client,
+    network transmission costs and I/O formatting costs are not included.
+    Second, the overhead added by <TT
+CLASS="COMMAND"
+>EXPLAIN ANALYZE</TT
+> can be
+    significant, especially on machines with slow <CODE
+CLASS="FUNCTION"
+>gettimeofday()</CODE
+>
+    kernel calls.
+   </P
+><P
+>    It is worth noting that <TT
+CLASS="COMMAND"
+>EXPLAIN</TT
+> results should not be extrapolated
+    to situations other than the one you are actually testing; for example,
+    results on a toy-sized table cannot be assumed to apply to large tables.
+    The planner's cost estimates are not linear and so it might choose
+    a different plan for a larger or smaller table.  An extreme example
+    is that on a table that only occupies one disk page, you'll nearly
+    always get a sequential scan plan whether indexes are available or not.
+    The planner realizes that it's going to take one disk page read to
+    process the table in any case, so there's no value in expending additional
+    page reads to look at an index.
+   </P
+></DIV
+><H3
+CLASS="FOOTNOTES"
+>Notes</H3
+><TABLE
+BORDER="0"
+CLASS="FOOTNOTES"
+WIDTH="100%"
+><TR
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="5%"
+><A
+NAME="FTN.AEN22844"
+HREF="using-explain.html#AEN22844"
+><SPAN
+CLASS="footnote"
+>[1]</SPAN
+></A
+></TD
+><TD
+ALIGN="LEFT"
+VALIGN="TOP"
+WIDTH="95%"
+><P
+>      Examples in this section are drawn from the regression test database
+      after doing a <TT
+CLASS="COMMAND"
+>VACUUM ANALYZE</TT
+>, using 8.2 development sources.
+      You should be able to get similar results if you try the examples yourself,
+      but your estimated costs and row counts might vary slightly
+      because <TT
+CLASS="COMMAND"
+>ANALYZE</TT
+>'s statistics are random samples rather
+      than exact.
+     </P
+></TD
+></TR
+></TABLE
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="performance-tips.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="planner-stats.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>Performance Tips</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="performance-tips.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>Statistics Used by the Planner</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>

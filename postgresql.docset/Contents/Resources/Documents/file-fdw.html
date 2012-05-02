@@ -1,0 +1,378 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<HTML
+><HEAD
+><TITLE
+>file_fdw</TITLE
+><META
+NAME="GENERATOR"
+CONTENT="Modular DocBook HTML Stylesheet Version 1.79"><LINK
+REV="MADE"
+HREF="mailto:pgsql-docs@postgresql.org"><LINK
+REL="HOME"
+TITLE="PostgreSQL 9.1.1 Documentation"
+HREF="index.html"><LINK
+REL="UP"
+TITLE="Additional Supplied Modules"
+HREF="contrib.html"><LINK
+REL="PREVIOUS"
+TITLE="earthdistance"
+HREF="earthdistance.html"><LINK
+REL="NEXT"
+TITLE="fuzzystrmatch"
+HREF="fuzzystrmatch.html"><LINK
+REL="STYLESHEET"
+TYPE="text/css"
+HREF="stylesheet.css"><META
+HTTP-EQUIV="Content-Type"
+CONTENT="text/html; charset=ISO-8859-1"><META
+NAME="creation"
+CONTENT="2011-09-22T22:13:27"></HEAD
+><BODY
+CLASS="SECT1"
+><DIV
+CLASS="NAVHEADER"
+><TABLE
+SUMMARY="Header navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TH
+COLSPAN="5"
+ALIGN="center"
+VALIGN="bottom"
+><A
+HREF="index.html"
+>PostgreSQL 9.1.1 Documentation</A
+></TH
+></TR
+><TR
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="top"
+><A
+TITLE="earthdistance"
+HREF="earthdistance.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="10%"
+ALIGN="left"
+VALIGN="top"
+><A
+TITLE="Additional Supplied Modules"
+HREF="contrib.html"
+>Fast Backward</A
+></TD
+><TD
+WIDTH="60%"
+ALIGN="center"
+VALIGN="bottom"
+>Appendix F. Additional Supplied Modules</TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="top"
+><A
+TITLE="Additional Supplied Modules"
+HREF="contrib.html"
+>Fast Forward</A
+></TD
+><TD
+WIDTH="10%"
+ALIGN="right"
+VALIGN="top"
+><A
+TITLE="fuzzystrmatch"
+HREF="fuzzystrmatch.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+></TABLE
+><HR
+ALIGN="LEFT"
+WIDTH="100%"></DIV
+><DIV
+CLASS="SECT1"
+><H1
+CLASS="SECT1"
+><A
+NAME="FILE-FDW"
+>F.14. file_fdw</A
+></H1
+><P
+>  The <TT
+CLASS="FILENAME"
+>file_fdw</TT
+> module provides the foreign-data wrapper
+  <CODE
+CLASS="FUNCTION"
+>file_fdw</CODE
+>, which can be used to access data
+  files in the server's file system.  Data files must be in a format
+  that can be read by <TT
+CLASS="COMMAND"
+>COPY FROM</TT
+>;
+  see <A
+HREF="sql-copy.html"
+>COPY</A
+> for details.
+ </P
+><P
+>  A foreign table created using this wrapper can have the following options:
+ </P
+><P
+></P
+><DIV
+CLASS="VARIABLELIST"
+><DL
+><DT
+><TT
+CLASS="LITERAL"
+>filename</TT
+></DT
+><DD
+><P
+>     Specifies the file to be read.  Required.  Must be an absolute path name.
+    </P
+></DD
+><DT
+><TT
+CLASS="LITERAL"
+>format</TT
+></DT
+><DD
+><P
+>     Specifies the file's format,
+     the same as <TT
+CLASS="COMMAND"
+>COPY</TT
+>'s <TT
+CLASS="LITERAL"
+>FORMAT</TT
+> option.
+    </P
+></DD
+><DT
+><TT
+CLASS="LITERAL"
+>header</TT
+></DT
+><DD
+><P
+>     Specifies whether the file has a header line,
+     the same as <TT
+CLASS="COMMAND"
+>COPY</TT
+>'s <TT
+CLASS="LITERAL"
+>HEADER</TT
+> option.
+    </P
+></DD
+><DT
+><TT
+CLASS="LITERAL"
+>delimiter</TT
+></DT
+><DD
+><P
+>     Specifies the file's delimiter character,
+     the same as <TT
+CLASS="COMMAND"
+>COPY</TT
+>'s <TT
+CLASS="LITERAL"
+>DELIMITER</TT
+> option.
+    </P
+></DD
+><DT
+><TT
+CLASS="LITERAL"
+>quote</TT
+></DT
+><DD
+><P
+>     Specifies the file's quote character,
+     the same as <TT
+CLASS="COMMAND"
+>COPY</TT
+>'s <TT
+CLASS="LITERAL"
+>QUOTE</TT
+> option.
+    </P
+></DD
+><DT
+><TT
+CLASS="LITERAL"
+>escape</TT
+></DT
+><DD
+><P
+>     Specifies the file's escape character,
+     the same as <TT
+CLASS="COMMAND"
+>COPY</TT
+>'s <TT
+CLASS="LITERAL"
+>ESCAPE</TT
+> option.
+    </P
+></DD
+><DT
+><TT
+CLASS="LITERAL"
+>null</TT
+></DT
+><DD
+><P
+>     Specifies the file's null string,
+     the same as <TT
+CLASS="COMMAND"
+>COPY</TT
+>'s <TT
+CLASS="LITERAL"
+>NULL</TT
+> option.
+    </P
+></DD
+><DT
+><TT
+CLASS="LITERAL"
+>encoding</TT
+></DT
+><DD
+><P
+>     Specifies the file's encoding.
+     the same as <TT
+CLASS="COMMAND"
+>COPY</TT
+>'s <TT
+CLASS="LITERAL"
+>ENCODING</TT
+> option.
+    </P
+></DD
+></DL
+></DIV
+><P
+>  <TT
+CLASS="COMMAND"
+>COPY</TT
+>'s <TT
+CLASS="LITERAL"
+>OIDS</TT
+>, <TT
+CLASS="LITERAL"
+>FORCE_QUOTE</TT
+>,
+  and <TT
+CLASS="LITERAL"
+>FORCE_NOT_NULL</TT
+> options are currently not supported by
+  <TT
+CLASS="LITERAL"
+>file_fdw</TT
+>.
+ </P
+><P
+>  These options can only be specified for a foreign table, not in the
+  options of the <TT
+CLASS="LITERAL"
+>file_fdw</TT
+> foreign-data wrapper, nor in the
+  options of a server or user mapping using the wrapper.
+ </P
+><P
+>  Changing table-level options requires superuser privileges, for security
+  reasons: only a superuser should be able to determine which file is read.
+  In principle non-superusers could be allowed to change the other options,
+  but that's not supported at present.
+ </P
+><P
+>  For a foreign table using <TT
+CLASS="LITERAL"
+>file_fdw</TT
+>, <TT
+CLASS="COMMAND"
+>EXPLAIN</TT
+> shows
+  the name of the file to be read.  Unless <TT
+CLASS="LITERAL"
+>COSTS OFF</TT
+> is
+  specified, the file size (in bytes) is shown as well.
+ </P
+></DIV
+><DIV
+CLASS="NAVFOOTER"
+><HR
+ALIGN="LEFT"
+WIDTH="100%"><TABLE
+SUMMARY="Footer navigation table"
+WIDTH="100%"
+BORDER="0"
+CELLPADDING="0"
+CELLSPACING="0"
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+><A
+HREF="earthdistance.html"
+ACCESSKEY="P"
+>Prev</A
+></TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="index.html"
+ACCESSKEY="H"
+>Home</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+><A
+HREF="fuzzystrmatch.html"
+ACCESSKEY="N"
+>Next</A
+></TD
+></TR
+><TR
+><TD
+WIDTH="33%"
+ALIGN="left"
+VALIGN="top"
+>earthdistance</TD
+><TD
+WIDTH="34%"
+ALIGN="center"
+VALIGN="top"
+><A
+HREF="contrib.html"
+ACCESSKEY="U"
+>Up</A
+></TD
+><TD
+WIDTH="33%"
+ALIGN="right"
+VALIGN="top"
+>fuzzystrmatch</TD
+></TR
+></TABLE
+></DIV
+></BODY
+></HTML
+>
